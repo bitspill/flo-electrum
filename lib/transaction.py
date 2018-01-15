@@ -31,6 +31,7 @@ from .util import print_error, profiler
 
 from . import bitcoin
 from .bitcoin import *
+import codecs
 import struct
 
 #
@@ -484,6 +485,10 @@ def deserialize(raw):
                     txin['type'] = 'p2wsh'
                     txin['address'] = bitcoin.script_to_p2wsh(txin['witnessScript'])
     d['lockTime'] = vds.read_uint32()
+    if d['version'] >= 2:
+        d['txcomment'] = vds.read_string()
+    else:
+        d['txcomment'] = ""
     return d
 
 
@@ -522,6 +527,7 @@ class Transaction:
         self._inputs = None
         self._outputs = None
         self.locktime = 0
+        self.txcomment = ""
         self.version = 1
 
     def update(self, raw):
@@ -591,14 +597,16 @@ class Transaction:
         self._outputs = [(x['type'], x['address'], x['value']) for x in d['outputs']]
         self.locktime = d['lockTime']
         self.version = d['version']
+        self.txcomment = d['txcomment']
         return d
 
     @classmethod
-    def from_io(klass, inputs, outputs, locktime=0):
+    def from_io(klass, inputs, outputs, locktime=0, txcomment=""):
         self = klass(None)
         self._inputs = inputs
         self._outputs = outputs
         self.locktime = locktime
+        self.txcomment = txcomment
         return self
 
     @classmethod
@@ -782,6 +790,7 @@ class Transaction:
         nVersion = int_to_hex(self.version, 4)
         nHashType = int_to_hex(1, 4)
         nLocktime = int_to_hex(self.locktime, 4)
+        nTxComment = var_int(len(self.txcomment)) + str(codecs.encode(bytes(self.txcomment, 'utf-8'), 'hex_codec'), 'utf-8')
         inputs = self.inputs()
         outputs = self.outputs()
         txin = inputs[i]
@@ -795,11 +804,17 @@ class Transaction:
             scriptCode = var_int(len(preimage_script) // 2) + preimage_script
             amount = int_to_hex(txin['value'], 8)
             nSequence = int_to_hex(txin.get('sequence', 0xffffffff - 1), 4)
-            preimage = nVersion + hashPrevouts + hashSequence + outpoint + scriptCode + amount + nSequence + hashOutputs + nLocktime + nHashType
+            if self.version >= 2:
+                preimage = nVersion + hashPrevouts + hashSequence + outpoint + scriptCode + amount + nSequence + hashOutputs + nLocktime + nTxComment + nHashType
+            else:
+                preimage = nVersion + hashPrevouts + hashSequence + outpoint + scriptCode + amount + nSequence + hashOutputs + nLocktime + nHashType
         else:
             txins = var_int(len(inputs)) + ''.join(self.serialize_input(txin, self.get_preimage_script(txin) if i==k else '') for k, txin in enumerate(inputs))
             txouts = var_int(len(outputs)) + ''.join(self.serialize_output(o) for o in outputs)
-            preimage = nVersion + txins + txouts + nLocktime + nHashType
+            if self.version >= 2:
+                preimage = nVersion + txins + txouts + nLocktime + nTxComment + nHashType
+            else:
+                preimage = nVersion + txins + txouts + nLocktime + nHashType
         return preimage
 
     def is_segwit(self):
@@ -808,6 +823,7 @@ class Transaction:
     def serialize(self, estimate_size=False, witness=True):
         nVersion = int_to_hex(self.version, 4)
         nLocktime = int_to_hex(self.locktime, 4)
+        nTxComment = var_int(len(self.txcomment)) + str(codecs.encode(bytes(self.txcomment, 'utf-8'), 'hex_codec'), 'utf-8')
         inputs = self.inputs()
         outputs = self.outputs()
         txins = var_int(len(inputs)) + ''.join(self.serialize_input(txin, self.input_script(txin, estimate_size)) for txin in inputs)
@@ -816,9 +832,16 @@ class Transaction:
             marker = '00'
             flag = '01'
             witness = ''.join(self.serialize_witness(x, estimate_size) for x in inputs)
-            return nVersion + marker + flag + txins + txouts + witness + nLocktime
+            if self.version >= 2:
+                return nVersion + marker + flag + txins + txouts + witness + nLocktime + nTxComment
+            else:
+                return nVersion + marker + flag + txins + txouts + witness + nLocktime
         else:
-            return nVersion + txins + txouts + nLocktime
+            if self.version >= 2:
+                return nVersion + txins + txouts + nLocktime + nTxComment
+            else:
+                return nVersion + txins + txouts + nLocktime
+
 
     def hash(self):
         print("warning: deprecated tx.hash()")

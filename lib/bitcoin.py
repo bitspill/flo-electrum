@@ -54,14 +54,14 @@ def read_json(filename, default):
 # segwit in p2sh: yprv, ypub
 # native segwit: zprv, zpub
 XPRV_HEADERS = {
-    'standard': 0x0488ade4,
+    'standard': 0x01343c31,
     'p2wpkh-p2sh': 0x049d7878,
     'p2wsh-p2sh': 0x295b005,
     'p2wpkh': 0x4b2430c,
     'p2wsh': 0x2aa7a99
 }
 XPUB_HEADERS = {
-    'standard': 0x0488b21e,
+    'standard': 0x0134406b,
     'p2wpkh-p2sh': 0x049d7cb2,
     'p2wsh-p2sh': 0x295b43f,
     'p2wpkh': 0x4b24746,
@@ -74,11 +74,11 @@ class NetworkConstants:
     @classmethod
     def set_mainnet(cls):
         cls.TESTNET = False
-        cls.WIF_PREFIX = 0x80
-        cls.ADDRTYPE_P2PKH = 0
-        cls.ADDRTYPE_P2SH = 5
+        cls.WIF_PREFIX = 163
+        cls.ADDRTYPE_P2PKH = 35
+        cls.ADDRTYPE_P2SH = 8
         cls.SEGWIT_HRP = "bc"
-        cls.GENESIS = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
+        cls.GENESIS = "09c7781c9df90708e278c35d38ea5c9041d7ecfcdd1c56ba67274b7cff3e1cea"
         cls.DEFAULT_PORTS = {'t': '50001', 's': '50002'}
         cls.DEFAULT_SERVERS = read_json('servers.json', {})
         cls.CHECKPOINTS = read_json('checkpoints.json', [])

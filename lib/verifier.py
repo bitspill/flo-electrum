@@ -38,6 +38,7 @@ class SPV(ThreadJob):
 
     def run(self):
         lh = self.network.get_local_height()
+        # ToDo: local_height is incorrect
         unverified = self.wallet.get_unverified_txs()
         for tx_hash, tx_height in unverified.items():
             # do not request merkle branch before headers are available
